@@ -29,11 +29,12 @@ class LSTM(nn.Module):
         init.constant_(self.wh.bias.data, val=0)
 
     def forward(self, x, state):
-        '''
+        """
         :param x: input of shape (seq_len, batch, input_dim)
         :param state: tuple of shape (h, c) where h and c are vectores of length hidden_dim
         :return:
-        '''
+        """
+
         assert x.dim() == 3, 'Expected Input of shape (seq_len, batch, input_dim)'
         x_full_seq = x
         h, c = state
@@ -41,7 +42,7 @@ class LSTM(nn.Module):
             gates_i = self.wx(x)
             gates_h = self.wh(h)
 
-            i, j, f, o = torch.chunk(gates_i + gates_h, 4, 1)
+            i, f, j, o = torch.chunk(gates_i + gates_h, 4, 1)
 
             if self.dropout:
                 g = self.dropout(torch.tanh(j))
