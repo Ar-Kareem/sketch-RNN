@@ -5,11 +5,12 @@ from torch.nn import init
 
 class LSTM(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, forget_bias=1.0, dropout=0, layer_norm=False):
+    def __init__(self, input_dim, hidden_dim, forget_bias=1.0, dropout=0, layer_norm=False, batch_first=False):
         super(LSTM, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.forget_bias = forget_bias
+        self.batch_first = batch_first
 
         self.wx = nn.Linear(input_dim, 4*hidden_dim, bias=False)
         self.wh = nn.Linear(hidden_dim, 4*hidden_dim, bias=True)
@@ -40,7 +41,12 @@ class LSTM(nn.Module):
         :param state: tuple of shape (h, c) where h and c are vectores of length hidden_dim
         :return:
         """
-        assert x.dim() == 3, 'Expected Input of shape (seq_len, batch, input_dim)'
+        if self.batch_first:
+            assert x.dim() == 3, 'Expected Input of shape (batch, seq_len, input_dim), got ' + str(x.size())
+            x = x.transpose(0, 1)
+        else:
+            assert x.dim() == 3, 'Expected Input of shape (seq_len, batch, input_dim), got ' + str(x.size())
+
         x_full_seq = x
         h, c = state
         for x in x_full_seq:
