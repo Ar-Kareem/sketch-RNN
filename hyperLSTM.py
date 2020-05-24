@@ -35,7 +35,7 @@ class LSTM(nn.Module):
         init.orthogonal_(self.wx.weight.data)
         init.constant_(self.wh.bias.data, val=0)
 
-    def forward(self, x, state):
+    def forward(self, x, state=None):
         """
         :param x: input of shape (seq_len, batch, input_dim)
         :param state: tuple of shape (h, c) where h and c are vectores of length hidden_dim
@@ -46,6 +46,11 @@ class LSTM(nn.Module):
             x = x.transpose(0, 1)
         else:
             assert x.dim() == 3, 'Expected Input of shape (seq_len, batch, input_dim), got ' + str(x.size())
+
+        if state is None:
+            state = (torch.zeros(100).to(x.device), torch.zeros(100).to(x.device))
+
+        assert len(state) == 2, 'Expected state of 2 items'
 
         x_full_seq = x
         h, c = state
