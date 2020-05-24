@@ -277,7 +277,7 @@ class HyperLSTM(nn.Module):
             oh = oh * d_oh
             # calculate the final value for the gates
             i = ix + ih + d_ib
-            f = fx + fh + d_fb + self.forget_bias
+            f = fx + fh + d_fb
             j = jx + jh + d_jb
             o = ox + oh + d_ob
 
@@ -298,5 +298,6 @@ class HyperLSTM(nn.Module):
                 c = self.layer_norm_c(c)
 
             h = torch.tanh(c) * self.sigmoid(o)
+            
         return h, ((h, c), (hyper_h, hyper_c))
 
