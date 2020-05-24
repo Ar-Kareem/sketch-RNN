@@ -4,7 +4,7 @@ import numpy as np
 import hyperLSTM
 import pytorch_lightning as pl
 from torch.utils.data import Dataset, DataLoader
-
+from torch.nn import functional as F
 
 
 class MyLayerNorm(nn.Module):
@@ -66,28 +66,22 @@ def layer_norm_comparison():
             self.model = model
             self.proj = nn.Linear(in_, out_)
 
-        def forward(self, x, state):
+        def forward(self, x, state=None):
             out, state = self.model(x, state)
             return self.proj(out).unsqueeze(-1), state
-
-        def configure_optimizers(self):
-            return torch.optim.Adam(self.parameters(), lr=1e-2)
+            # return self.proj(x.squeeze()).unsqueeze(-1), None
 
         def training_step(self, train_batch, batch_idx):
             x, y = train_batch
-            state = (torch.zeros(100), torch.zeros(100))
-            out, _ = self.forward(x, state)
-            lose_fn = torch.nn.MSELoss(reduction='mean')
-            loss = lose_fn(out, y)
+            out, _ = self.forward(x)
+            loss = self.lose_fn(out, y)
             logs = {'train_loss': loss}
             return {'loss': loss, 'log': logs}
 
         def validation_step(self, val_batch, batch_idx):
             x, y = val_batch
-            state = (torch.zeros(100), torch.zeros(100))
-            out, _ = self.forward(x, state)
-            lose_fn = torch.nn.MSELoss(reduction='mean')
-            loss = lose_fn(out, y)
+            out, _ = self.forward(x)
+            loss = self.lose_fn(out, y)
             return {'val_loss': loss}
 
         def validation_epoch_end(self, outputs):
@@ -97,6 +91,18 @@ def layer_norm_comparison():
             avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
             tensorboard_logs = {'val_loss': avg_loss}
             return {'avg_val_loss': avg_loss, 'log': tensorboard_logs}
+
+        def lose_fn(self, y_hat, y):
+            if torch.any(y_hat<0):
+                y_hat = y_hat + (-1*y_hat.min().item())
+            return torch.sqrt(F.mse_loss(torch.log(y_hat + 1), torch.log(y + 1)))
+
+        # ---------------------
+        # TRAINING SETUP
+        # ---------------------
+
+        def configure_optimizers(self):
+            return torch.optim.Adam(self.parameters(), lr=1e-2)
 
         def prepare_data(self):
             self.dataset = TupleDataset(10, 3)
@@ -129,9 +135,10 @@ def layer_norm_comparison():
             # output should be [seq_len, 1]
             return self.x[idx].unsqueeze(1), self.y[idx].unsqueeze(1)
 
-    model = hyperLSTM.LSTM(1, 100, batch_first=True)
+    model = hyperLSTM.LSTM(1, 100, batch_first=True, layer_norm=True)
     wrapper = PLWrapper(model, 100, 3)
-    trainer = pl.Trainer()
+    # wrapper = PLWrapper(None, 10, 3)
+    trainer = pl.Trainer(gpus=1)
     trainer.fit(wrapper)
 
 
