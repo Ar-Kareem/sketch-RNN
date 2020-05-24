@@ -69,6 +69,22 @@ class MyTestCase(unittest.TestCase):
         self.assertFalse(torch.allclose(lstm_out[1][0].data, pytorch_lstm_out[1][0].data), "Short term memory should be different")
         self.assertFalse(torch.allclose(lstm_out[1][1].data, pytorch_lstm_out[1][1].data), "Long term memory should be different")
 
+    def test_lstm_empty_state(self):
+        torch.manual_seed(42)
+        pytorch_lstm = nn.LSTM(5, 2)
+        lstm = hyperLSTM.LSTM(5, 2, forget_bias=0)
+        lstm.wx.weight.data = dict(pytorch_lstm.named_parameters())['weight_ih_l0']
+        lstm.wh.weight.data = dict(pytorch_lstm.named_parameters())['weight_hh_l0']
+        lstm.wh.bias.data = dict(pytorch_lstm.named_parameters())['bias_ih_l0'] + dict(pytorch_lstm.named_parameters())['bias_hh_l0']
+
+        input_ = torch.normal(torch.ones(3, 10, 5))
+        state_torch = (torch.zeros(1, 10, 2), torch.zeros(1, 10, 2))
+
+        lstm_out = lstm(input_)
+        pytorch_lstm_out = pytorch_lstm(input_, state_torch)
+
+        self.assertTrue(torch.allclose(lstm_out[1][0].data, pytorch_lstm_out[1][0].data), "Short term memory differs")
+        self.assertTrue(torch.allclose(lstm_out[1][1].data, pytorch_lstm_out[1][1].data), "Long term memory differs")
 
 if __name__ == '__main__':
     unittest.main()
