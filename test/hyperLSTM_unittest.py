@@ -86,5 +86,13 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(torch.allclose(lstm_out[1][0].data, pytorch_lstm_out[1][0].data), "Short term memory differs")
         self.assertTrue(torch.allclose(lstm_out[1][1].data, pytorch_lstm_out[1][1].data), "Long term memory differs")
 
+    def test_hyper_lstm_not_crashing(self):
+        torch.manual_seed(42)
+        lstm = hyperLSTM.HyperLSTM(5, 2, layer_norm=True, dropout=0.1)
+
+        input_ = torch.normal(torch.ones(3, 10, 5))
+
+        lstm_out = lstm(input_)
+
 if __name__ == '__main__':
     unittest.main()
