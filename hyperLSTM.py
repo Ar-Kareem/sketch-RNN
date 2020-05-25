@@ -102,10 +102,11 @@ class HyperLSTM(nn.Module):
                  hyper_dropout=0):
 
         super(HyperLSTM, self).__init__()
-        self.hyper_cell = LSTM(input_dim, hyper_hidden_dim,forget_bias=forget_bias, dropout=hyper_dropout,
+        self.hyper_cell = LSTM(input_dim+hidden_dim, hyper_hidden_dim,forget_bias=forget_bias, dropout=hyper_dropout,
                                layer_norm=layer_norm, batch_first=batch_first)
         self.hyper_embedding_dim = hyper_embedding_dim
         self.hidden_dim = hidden_dim
+        self.hyper_hidden_dim = hyper_hidden_dim
         self.forget_bias = forget_bias
         self.batch_first = batch_first
         self.zero_state = None
@@ -232,7 +233,7 @@ class HyperLSTM(nn.Module):
         if state is None:
             if self.zero_state is None:
                 lstm_zero_state = tuple(torch.zeros(self.hidden_dim, device=x.device) for _ in range(2))
-                hyper_cell_zero_state = tuple(torch.zeros(self.hyper_embedding_dim, device=x.device) for _ in range(2))
+                hyper_cell_zero_state = tuple(torch.zeros(self.hyper_hidden_dim, device=x.device) for _ in range(2))
                 self.zero_state = (lstm_zero_state, hyper_cell_zero_state)
             state = self.zero_state
 
@@ -242,10 +243,12 @@ class HyperLSTM(nn.Module):
 
         x_full_seq = x
         (h, c), (hyper_h, hyper_c) = state
+        if h.dim() == 1:
+            h = h.unsqueeze(0)
 
         for x in x_full_seq:
-
-            hyper_out, (hyper_h, hyper_c) = self.hyper_cell(x, (hyper_h, hyper_c))
+            hyper_input = torch.cat((x, h.expand((x.shape[0], -1))), dim=1).unsqueeze(0)
+            hyper_out, (hyper_h, hyper_c) = self.hyper_cell(hyper_input, (hyper_h, hyper_c))
             # hyper_out to embeds to weight scaling vectors for x
             d_ix = self.w_zd_ix(self.w_hz_ix(hyper_out))
             d_fx = self.w_zd_ix(self.w_hz_ix(hyper_out))
@@ -298,6 +301,6 @@ class HyperLSTM(nn.Module):
                 c = self.layer_norm_c(c)
 
             h = torch.tanh(c) * self.sigmoid(o)
-            
+
         return h, ((h, c), (hyper_h, hyper_c))
 
